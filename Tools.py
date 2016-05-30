@@ -603,13 +603,12 @@ if __name__ == "__main__":
     
 
 
-# In[376]:
+# In[335]:
 
 import random
 import math
 import copy
 import types
-from yahmm import *
 
 #from matplotlib.axis import axis
 """
@@ -623,69 +622,94 @@ with open("/home/jarbona/Theano/subd","w" ) as f:
 """
 
 
-def NormalDistribution(number,pre):
-    return DiscreteDistribution({number:1})
-def one_particle_n_states(ListState0,transition_mat=[],StateN={},selfprob=0.033):
-  
 
-    model = Model( name="Unknown" )
+
+def random_distr(l):
+    r = random.uniform(0, 1)
+    s = 0
+    for item, prob in enumerate(l):
+        s += prob
+        if s >= r:
+            return item
+    return item 
     
+class Model3:
+    def __init__(self,name):
+        self.name = name
+        self.list_state = ["start","end"]
+        self.transition = None
+    def add_state(self,sname):
+        self.list_state.append(sname)
+
+    def add_transition(self,sn1,sn2,v):
+
+        if self.transition is None:
+            self.transition = np.zeros((len(self.list_state),len(self.list_state)))
+
+        self.transition[self.list_state.index(sn1),self.list_state.index(sn2)] = v
+    def get_transition(self,sn1,sn2):
+        return self.transition[self.list_state.index(sn1),self.list_state.index(sn2)] 
+
+    def sample(self,time):
+        seq = ["start"]
+        for i in range(time+1):
+            nextt = random_distr(self.transition[self.list_state.index(seq[-1]),::])
+            seq.append(self.list_state[nextt])
+        return seq[1:]
+
+
+def one_particle_n_states_s(ListState0,transition_mat=[],StateN={},selfprob=0.033):
+
+
+    model = Model3("Unknown" )
+
     pre=0.0001
-    Ra0 = State(NormalDistribution(StateN["Ra0"], pre), name="Ra0")
-    Ra1 = State(NormalDistribution(StateN["Ra1"], pre), name="Ra1") 
-     
-    Ra2 = State(NormalDistribution(StateN["Ra2"], pre), name="Ra2")   
-    
-    
-    sRa0 = State(NormalDistribution(StateN["sRa0"], pre), name="sRa0")
-    sRa1 = State(NormalDistribution(StateN["sRa1"], pre), name="sRa1") 
-     
-    sRa2 = State(NormalDistribution(StateN["sRa2"], pre), name="sRa2")   
-    """
-    Ra3 = State(NormalDistribution(StateN["Ra3"], pre), name="Ra3")
-    Ra4 = State(NormalDistribution(StateN["Ra4"], pre), name="Ra4")   
-    Ra5 = State(NormalDistribution(StateN["Ra5"], pre), name="Ra5") 
-    
-    """
-    Le0 = State(NormalDistribution(StateN["Le0"], pre), name="Le0")
-    #Le1 = State(NormalDistribution(StateN["Le1"], pre), name="Le1")
-    #i0 = State(NormalDistribution(StateN["Ri0"], pre), name="Ri0")
-    Ri0 = State(NormalDistribution(StateN["Ri0"], pre), name="Ri0")
+    Ra0 ="Ra0"
+    Ra1 = "Ra1"
 
-    Ri1 = State(NormalDistribution(StateN["Ri1"], pre), name="Ri1")
+    Ra2 = "Ra2"
 
-    
+
+    sRa0 = "sRa0"
+    sRa1 = "sRa1"
+
+    sRa2 = "sRa2"
+
+    Le0 = "Le0"
+
+    Ri0 = "Ri0"
+
+    Ri1 = "Ri1"
+
+
     ListStatet=[Ra0,Ra1,Ra2,Le0,Ri0,Ri1,sRa0,sRa1,sRa2]#,Ra3,Ra4,Ra5,Le0]#,Ri0]#,Ri1,Le1]
     ListState = []
     for i in ListState0:
         ListState.append(ListStatet[i])
-        
+
     #print [l.name for l in ListState]
     for state in ListState:
         model.add_state(state)
-       
+
     endp=0.0000001
     for state0 in ListState:
         for state1 in ListState:
-            if state1.name == state0.name:
+            if state1 == state0:
                 s0=0.166
                 s0=selfprob
                 model.add_transition(state0, state1,s0)
             else:
                 model.add_transition(state0,state1, (1-s0-endp)/(len(ListState)-1) )
 
-   
+
     for state in ListState:
 
-        model.add_transition(model.start,state, 1.0/len(ListState))
-        model.add_transition(state,model.end, endp)
-   
+        model.add_transition("start",state, 1.0/len(ListState))
+        model.add_transition(state,"end", endp)
 
-    model.bake()
-    
+
+
     return model
-
-
 
 def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
                   delta_sigma_directed=6,force_model=None,
@@ -782,10 +806,10 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
     #ListState=[0]
     selfprob = lower_selfprob + (1-lower_selfprob)*random.random()
     #print "Sampling",ListState
-    model = one_particle_n_states(ListState0=ListState,StateN=StateN,selfprob=selfprob)
+    model = one_particle_n_states_s(ListState0=ListState,StateN=StateN,selfprob=selfprob)
     #print "ENdS"
     seq = np.zeros(time)
-    sequence  = model.sample(time)
+    sequence  = model.sample(time-1)
     
     
     scale = 1+9*random.random()
@@ -978,7 +1002,8 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
    
         
         
-        seq[tt] = int(round(v,0))
+        #seq[tt] = int(round(v,0))
+        seq[tt]  = StateN[v]
         
         
         name = iStateN[seq[tt]]
@@ -1232,6 +1257,18 @@ if __name__ == "__main__":
     
   
 #print normed.shape
+
+
+# In[329]:
+
+if __name__ == "__main__":
+
+
+    M = one_particle_n_states_s([0,1])
+    print M.transition
+    print M.list_state
+    print M.get_transition("end","start")
+    print M.sample(3)
 
 
 # In[345]:
