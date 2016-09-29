@@ -53,6 +53,7 @@ SPECIFIC issues:
 """
 sudo docker daemon
 docker run -ti --dns=157.99.64.65 --name running jeammimi/docker-keras-rnn:v5 /bin/sh
+#rm src in docker
 docker cp src running:/src           #to copy file from here to container
 docker commit -m "My modif" running jeammimi/docker-keras-rnn:v2   #to save running container
 
@@ -127,7 +128,7 @@ print "Loading model"
     
 
 
-# In[2]:
+# In[9]:
 
 #loading network
 from scipy.io import loadmat,savemat
@@ -135,14 +136,13 @@ import numpy as np
 import theano
 theano.config.mode="FAST_COMPILE"
 
-from Specialist_layer import return_three_bis
+from Specialist_layer import return_four_paper
+graph = return_four_paper(ndim=2,inside = 50,permutation=True,inputsize=5)
 
-
-graph9 = return_three_bis(ndim=ndim)
 print "Running model"
 
 
-# In[3]:
+# In[2]:
 
 from scipy.io import loadmat,savemat
 from prePostTools import get_parameters,M1,M0
@@ -200,7 +200,7 @@ def save_on_mat(name,step_categorie,categories,traj,px,fr,ndim):
     
 
 
-# In[22]:
+# In[24]:
 
 from prePostTools import clean_initial_trajectory,put_back_nan,clean,traj_to_dist
 from keras.utils import generic_utils
@@ -208,21 +208,39 @@ import json
 import glob
 import os
 
+def load_weights_old(graph, filepath):
+    '''Load weights from a HDF5 file.
+    '''
+    import h5py
+    f = h5py.File(filepath, mode='r')
+    g = f['graph']
+    weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
+    start = 0
+    
+    for nl,l in enumerate(graph.layers):
+        p = l.trainable_weights + l.non_trainable_weights
+        #print p
+        if len(p) > 0:
+            graph.layers[nl].set_weights(weights[start:start+len(p)])
+        start += len(p)
+    f.close()
+
 
 """
 ndim = 2
 filetoopen ="/home/jarbona/Downloads/v3_crop-1_MinFr30.mat"
 res_folder = "./"
-sub = True
+sub = False
 batch = False
 aformat = "mat"
 """
 
 if sub:
-    graph9.load_weights("saved_weights/three_bilayer_sub_bis")
+    print "Not implemented" 
+    #graph9.load_weights("saved_weights/three_bilayer_sub_bis")
 
 else:
-    graph9.load_weights("saved_weights/three_layer_trained_on_no_sub_anisentropy0_diffsigma1_delta_sigma_directed3")
+    load_weights_old(graph,"saved_weights/paper_sub_simple=False,diff_sigma=2.0,delta_sigma_directed=6.,ndim=2,anisentropy=0.1,deltav=.4,rho_fixed=False,random_rotation=False_withnoise_0p25_12_18")
 
 
 
@@ -245,7 +263,14 @@ def process_one_file(filetoopen,localfolder,filetowrite):
     else:
         tmp = {}
         for k in M["analysisInfo"].dtype.names:
-            tmp[k] = M["analysisInfo"][k][0][0][0][0] 
+            #print k , len( M["analysisInfo"][k][0][0][0])# ,  M["analysisInfo"][k][0][0] 
+            if len( M["analysisInfo"][k][0][0][0]) == 1:
+                tmp[k] = M["analysisInfo"][k][0][0][0][0]
+            else:
+                tmp[k] =  M["analysisInfo"][k][0][0][0]
+            #print tmp[k]
+
+                   
         M["analysisInfo"] = tmp
     for k,v in add.items():
             M["analysisInfo"][k] = v
@@ -288,7 +313,7 @@ def process_one_file(filetoopen,localfolder,filetowrite):
         #pred0 = graph9.predict({"input1":normed[newaxis,::,::]})
 
 
-        pred0 = graph9.predict({"input1":normed[np.newaxis,::,::]},  batch_size=1)
+        pred0 = graph.predict({"input1":normed[np.newaxis,::,::]},  batch_size=1)
 
         pred_RNN = pred0["output"]
         pred_RNN_cat = pred0["category"]
@@ -356,11 +381,11 @@ def process_one_file(filetoopen,localfolder,filetowrite):
     print "Result writen in ",filetowrite
 
 
-# In[21]:
+# In[25]:
 
 if not batch:
     print "processing ",filetoopen
-    process_one_file(filetoopen,res_folder , "RNN_track_analysis")
+    process_one_file(filetoopen,res_folder , filetoopen[:-4] + "_RNN")
 
 else:
 
@@ -374,7 +399,7 @@ else:
     if not os.path.exists(os.path.join(filetoopen,"RNN")):
         print "The files " , liste_file 
         print "where found, but" 
-        print "You have to create a RNN folder in the directory where your trajectories are stored"
+        print "You have to create a folder called RNN in the directory where your trajectories are stored"
         raise
     for filet in liste_file:
         

@@ -19,6 +19,25 @@ M1 = ["D","Dv","D-D","D-DvL","DvR-DvL","D-D-D", "D-D-DvL","D-DvL-DvR","D-D-DvL-D
                       "sD-DvL-DvR-DvR1",
                       "sD-D-DvL-DvR-DvR1",
                       "sD-sD-DvL-DvR-DvR1"]
+
+M1b = ["D","Dv","2D","D-Dv","2Dv","3D", "2D-Dv","D-2Dv","2D-2Dv",
+          "3Dv","D-3Dv","2D-3Dv","sD",
+                      "D-sD",
+                      "2sD",
+                      "sD-Dv",                     
+                      "sD-2D",
+                      "2sD-D",
+                      "3sD",      
+                      "sD-D-Dv",
+                      "2sD-DvL",              
+                      "sD-2Dv",
+                      "sD-D-2Dv",  
+                      "2sD-2Dv",                 
+                      "sD-3Dv",
+                      "sD-D-3Dv",
+                      "2sD-3Dv"]
+
+
 M0 = ["D","Dv","D-D","D-DvL","DvR-DvL","D-D-D", "D-D-DvL","D-DvL-DvR","DvL-DvR-DvR1","D-D-DvL-DvR",
           "D-DvL-DvR-DvR1","D-D-DvL-DvR-DvR1"]
 
@@ -239,9 +258,9 @@ def traj_to_dist(traji,bins=20,random_rotation=0,ndim=2):
     return alligned_traj,normed,directionp,axis
 
 
-# In[19]:
+# In[2]:
 
-
+from Toolv1 import traj_to_dist2
 def filter_same(traj):
     new_traj = []
     
@@ -289,19 +308,23 @@ def filter_same(traj):
     return np.array(new_traj),zeros,nnan,falsezeros
 
 
-def clean_initial_trajectory(traj0):
+def clean_initial_trajectory(traj0,v=1):
     
     traj,zeros,nans,falsezeros = filter_same(traj0)
 
     added0 = False
     #We need trajectory that can be subsampled by two
     if len(traj) % 2 == 0:
-        traj = np.concatenate((traj,np.zeros_like(traj[0:1,::])),axis=0)
+        #traj = np.concatenate((traj,np.zeros_like(traj[0:1,::])),axis=0)
+        traj = np.concatenate((traj,traj[-1:,::]),axis=0)
         added0 = True
         zeros.append(len(traj)-1)
 
-    
-    alligned_traj,normed,directionp,_ = traj_to_dist(traj)
+    if v == 1:
+        alligned_traj,normed,directionp,_ = traj_to_dist(traj)
+    if v == 2:
+        alligned_traj,normed = traj_to_dist2(traj)
+        
     for i in zeros:
         if i == 0:
             continue

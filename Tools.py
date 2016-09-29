@@ -14,7 +14,7 @@ import copy
 from scipy.io import loadmat
 
 
-# In[6]:
+# In[350]:
 
 from numpy import mean,cov,cumsum,dot,linalg,array,rank
 from numpy import cross, eye, dot
@@ -31,7 +31,7 @@ def plot_traj(X,label=[],random_sin=[],toplot=True):
        
         plot(X[i:i+2,0],X[i:i+2:,1],color=colors[label[i]])
         
-def random_rot(traj,alpha=None,ndim=2,axis=[]):
+def random_rot(traj,alpha=None,ndim=2,axis=[],centered=True):
     
     if ndim == 2:
         if alpha is None:
@@ -53,7 +53,10 @@ def random_rot(traj,alpha=None,ndim=2,axis=[]):
         #print axis
     
     #print axis.shape
-    newtraj =  (traj-mean(traj.T,axis=1)).T 
+    if centered:
+        newtraj =  (traj-mean(traj.T,axis=1)).T 
+    else:
+        newtraj =  traj.T 
 
     return dot(axis.T,newtraj).T
 
@@ -63,7 +66,10 @@ def random_rot(traj,alpha=None,ndim=2,axis=[]):
 # In[91]:
 
 colors = {0:"b",1:"g",2:"r",3:"k",4:"y",5:"c",6:"m"}
-import pylab as plt
+try:
+    import pylab as plt
+except:
+    pass
 import colorsys
 import numpy as np
 N = 15
@@ -98,28 +104,36 @@ def plot_label(traj,seq,remove6=None,linewidth=3,markersize=5,k=None):
                  linewidth=linewidth,markersize=markersize)
 
 
-# In[353]:
+# In[8]:
 
-from sklearn.metrics import confusion_matrix
+try:
+    from sklearn.metrics import confusion_matrix
 
-def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues,labels=[],rotation=45):
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(cm.shape[0])
-    #print len(labels),cm.shape[0]
+    def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Blues,labels=[],rotation=45,lengthctrl=True):
 
-    assert len(labels) == cm.shape[0]
-    plt.xticks(tick_marks, labels, rotation=rotation)
-    plt.yticks(tick_marks, labels,rotation=0)
-    #plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+        if lengthctrl:
+            assert len(labels) == cm.shape[0]
+
+        cm = cm[:len(labels),:len(labels)]
+        
+        tick_marks = np.arange(len(labels))
+        plt.imshow(cm, interpolation='nearest', cmap=cmap)
+        plt.title(title)
+        plt.colorbar()
+        #print len(labels),cm.shape[0]
+      
+            
+        plt.xticks(tick_marks, labels, rotation=rotation)
+        plt.yticks(tick_marks, labels,rotation=0)
+        #plt.tight_layout()
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
+except:
+    pass
 
 
 # In[742]:
 
-from sklearn.metrics import confusion_matrix
 
 def get_statistiques_hmm(Y_tests,Y_test_cat,root="",zone=range(500)):
     hmm = []
@@ -198,12 +212,19 @@ def get_statistiques_hmm(Y_tests,Y_test_cat,root="",zone=range(500)):
     return [np.sum(np.array(mv) != np.array(mv_HMM)) *100. / len(mv), len(mv) , confusion_matrix(mv,mv_HMM),             np.sum(GT != mvc_HMM) *100./len(GT) ,len(GT), confusion_matrix(mvc,mvc_HMM)]
 
 
-# In[748]:
+# In[9]:
 
-from sklearn.metrics import confusion_matrix
+def collapse7(arr):
+    arr[arr == 10] = 7
+    arr[arr == 11] = 9
+    return arr
 
 
-def get_statistiques(Y_tests,Y_test_cat,pred_RNN,pred_RNN_cat,fight=False,sub=True):
+# In[20]:
+
+
+
+def get_statistiques(Y_tests,Y_test_cat,pred_RNN,pred_RNN_cat,fight=False,sub=True,collapse=False):
 
     RNN = []
 
@@ -265,14 +286,23 @@ def get_statistiques(Y_tests,Y_test_cat,pred_RNN,pred_RNN_cat,fight=False,sub=Tr
 
     RNN = []
     GT = []
+    zone = range(0,len(pred_RNN_cat))
+    
+    catRNNa = np.argmax(pred_RNN_cat,axis=2)
+    cata =  np.argmax(Y_test_cat,axis=-1)
+
+        
+    if collapse:
+        catRNNa = collapse7(catRNNa)
+        cata = collapse7(cata)
+
+
     for i in zone:
 
 
-        cat = np.argmax(Y_test_cat[i])
-
-        catRNN = np.argmax(pred_RNN_cat[i])
-
-
+        cat = cata[i][0]
+        catRNN = copy.deepcopy(catRNNa[i][0])
+        
         RNN.append(catRNN)
         GT.append(cat)
 
@@ -281,6 +311,8 @@ def get_statistiques(Y_tests,Y_test_cat,pred_RNN,pred_RNN_cat,fight=False,sub=Tr
 
     RNN = np.array(RNN)
     GT = np.array(GT)
+    
+   
 
     #print range(pred_RNN_cat[0].shape[1])
     return np.sum(np.array(mv) != np.array(mv_RNN)) *100. / len(mv), len(mv) , confusion_matrix(mv,mv_RNN),             np.sum(GT != RNN) *100./len(RNN) ,len(RNN), confusion_matrix(mvc,mvc_RNN,labels=range(pred_RNN_cat[0].shape[1]))
@@ -310,11 +342,11 @@ def plot_by_class(traj,seq):
         plt.plot(delta[c,0],delta[c,1],"o",color=colors[i])
 
 
-# In[1]:
+# In[22]:
 
 Labels = ['D','DV','D, D','D, DV','DV, DV','D, D, D','D, D, DV','D, DV, DV','DV, DV, DV']
 
-from prePostTools import M1,M0
+from prePostTools import M1,M0,M1b
 
 #print len(M0),len(M1)
 
@@ -603,13 +635,13 @@ if __name__ == "__main__":
     
 
 
-# In[335]:
+# In[4]:
 
 import random
 import math
 import copy
 import types
-
+import numpy
 #from matplotlib.axis import axis
 """
 print [ k for k in lic2[ch-1].keys() if "x" in k]
@@ -650,11 +682,21 @@ class Model3:
     def get_transition(self,sn1,sn2):
         return self.transition[self.list_state.index(sn1),self.list_state.index(sn2)] 
 
-    def sample(self,time):
-        seq = ["start"]
-        for i in range(time+1):
-            nextt = random_distr(self.transition[self.list_state.index(seq[-1]),::])
-            seq.append(self.list_state[nextt])
+    def sample(self,time,noEnd=True):
+        
+        end = True
+        while end:
+            seq = ["start"]
+            for i in range(time+1):
+                nextt = random_distr(self.transition[self.list_state.index(seq[-1]),::])
+                seq.append(self.list_state[nextt])
+            
+            if "end" in seq and noEnd:
+                end = True
+            else:
+                end = False
+            
+                
         return seq[1:]
 
 
@@ -714,7 +756,8 @@ def one_particle_n_states_s(ListState0,transition_mat=[],StateN={},selfprob=0.03
 def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
                   delta_sigma_directed=6,force_model=None,
                   lower_selfprob=0.4,zeros=True,Ra0 = [],Ra1 = [],Mu0=[],Mu1=[],sRa0=[],
-                  sub=False,clean=None,check_delta=False,alpha=0.5,ndim=2,anisentropy=0.5,rho_fixed=False):
+                  sub=False,clean=None,check_delta=False,
+                  alpha=0.5,ndim=2,anisentropy=0.5,rho_fixed=False,random_rotation=False,fixed_self_proba=False):
 
     global X,Y
     #nstate = np.random.randint(1,6)
@@ -805,6 +848,8 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
 
     #ListState=[0]
     selfprob = lower_selfprob + (1-lower_selfprob)*random.random()
+    if fixed_self_proba:
+        selfprob = lower_selfprob
     #print "Sampling",ListState
     model = one_particle_n_states_s(ListState0=ListState,StateN=StateN,selfprob=selfprob)
     #print "ENdS"
@@ -818,7 +863,7 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
     
     cats = scale*np.random.random()
    
-    diff_sigma=2
+    #diff_sigma=2
     #1.5
     
     if Ra0 == []:
@@ -839,8 +884,8 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
     Ra2 = [0,max(diff_sigma*Ra1[1]+scale*np.random.random(),scale)]
     
     R_anisentropy = {"Ra0":1-anisentropy +  anisentropy*(1-2*np.random.random(3)),
-                   "Ra1":1-anisentropy +  anisentropy*(1-2*np.random.random(3)),
-                   "Ra2":1-anisentropy +  anisentropy*(1-2*np.random.random(3))}
+                     "Ra1":1-anisentropy +  anisentropy*(1-2*np.random.random(3)),
+                     "Ra2":1-anisentropy +  anisentropy*(1-2*np.random.random(3))}
     
     D ={"Ra0": Ra0,"Ra1":Ra1,"Ra2":Ra2} 
     
@@ -895,9 +940,17 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
     while np.sqrt(np.sum((mus1-mus2)**2)) < deltav*scale and             np.sqrt(np.sum((mus1-mus3)**2)) < deltav*scale  and             np.sqrt(np.sum((mus2-mus3)**2)) < deltav*scale :
         
         
-        mus1 = 2*scale*(1-2*np.random.random(ndim))
-        mus2 = 2*scale*(1-2*np.random.random(ndim))
-        mus3 = 2*scale*(1-2*np.random.random(ndim))
+        mus1 = scale*(1-2*np.random.random(ndim))
+        mus2 = scale*(1-2*np.random.random(ndim))
+        mus3 = scale*(1-2*np.random.random(ndim))
+
+    if random_rotation:
+        
+        while  np.sqrt(np.sum(mus1**2)-np.sum(mus2)**2) < deltav*scale and             np.sqrt(np.sum(mus1**2)-np.sum(mus3)**2) < deltav*scale and             np.sqrt(np.sum(mus2**2)-np.sum(mus3)**2) < deltav*scale:
+            
+            mus1 = scale*(1-2*np.random.random(ndim))
+            mus2 = scale*(1-2*np.random.random(ndim))
+            mus3 = scale*(1-2*np.random.random(ndim))
 
         """
         
@@ -972,8 +1025,13 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
         rho2 = Mu1[2]
     #mus2 = scale*
     
+    """
+    if Model_num == 3:
+        print "Scale",scale
+        print mus1,sigmas1
+        print Ra0
     
-
+    """
     if ndim == 2:
         scf = 2**0.5
         def get_covariance(sigmasm,rhom):
@@ -994,13 +1052,18 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
               "Ri1":[mus3,get_covariance(sigmas3,rho3)]}
     StartMu = {"Le0":0,"Ri0":0,"Ri1":0}
     
-    Mus = { iname:numpy.random.multivariate_normal(SigmasMu[iname][0],SigmasMu[iname][1],time)                    for iname in Model_type[iModel[Model_num]][1] if iname in ["Le0","Ri0","Ri1"]}
+    Mus = { iname:np.random.multivariate_normal(SigmasMu[iname][0],SigmasMu[iname][1],time)                    for iname in Model_type[iModel[Model_num]][1] if iname in ["Le0","Ri0","Ri1"]}
     #MODIF
    
     Dim = 2
+    transition = False
     for tt,v in enumerate(sequence):
    
-        
+        if tt > 0:
+            if sequence[tt-1] != sequence[tt]:
+                transition = True
+            else:
+                transition = False
         
         #seq[tt] = int(round(v,0))
         seq[tt]  = StateN[v]
@@ -1034,6 +1097,9 @@ def generate_traj(time,fight=False,diff_sigma=2,deltav=0.4,
             start[name] += 1
 
         if name in ["Le0","Ri0","Ri1"]:
+            
+            if transition and random_rotation:
+                Mus[name] = random_rot(Mus[name],ndim=ndim,centered=False)
             
             #theta = dalpha1*(1-2*random.random())
             #Dist = max(0.001,np.random.normal(D[name][0],D[name][1]))
@@ -1231,7 +1297,8 @@ if __name__ == "__main__":
     from prePostTools import get_parameters
     ModelN,Model_num,s,sc,traj,normed,alpha2= generate_traj(200,fight=False,sub=True,
                                                              zeros=False,clean=2,ndim=2,anisentropy=0,
-                                                            force_model=3,Mu0 =[[3,0],[1,1],[0]])
+                                                            force_model=4,Mu0 =[[5,0],[1,1],[0]],
+                                                            random_rotation=True)
     print ModelN,Model_num
     f = figure(figsize=(15,10))
   
